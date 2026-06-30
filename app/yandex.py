@@ -1,14 +1,11 @@
-"""Клиенты для Яндекс Geocoder и Router API."""
+"""Геокодирование через Яндекс и расчёт дорожного расстояния через публичный OSRM."""
 import asyncio
 import math
 
 import httpx
 
 GEOCODE_URL = "https://geocode-maps.yandex.ru/1.x/"
-ROUTER_URL = "https://api.routing.yandex.net/v2/route"
-
-GEOCODE_CONCURRENCY = 5
-ROUTE_CONCURRENCY = 5
+OSRM_ROUTE_URL = "https://router.project-osrm.org/route/v1/driving"
 
 
 class YandexApiError(Exception):
@@ -32,25 +29,16 @@ async def geocode(client: httpx.AsyncClient, api_key: str, address: str) -> tupl
 
 
 async def route_distance_km(
-    client: httpx.AsyncClient, api_key: str, origin: tuple[float, float], destination: tuple[float, float]
+    client: httpx.AsyncClient, origin: tuple[float, float], destination: tuple[float, float]
 ) -> float:
-    """Расстояние по автомобильному маршруту в км (точное, без округления)."""
-    waypoints = f"{origin[1]},{origin[0]}|{destination[1]},{destination[0]}"
-    resp = await client.get(
-        ROUTER_URL,
-        params={"apikey": api_key, "waypoints": waypoints, "mode": "driving"},
-    )
+    """Расстояние по автомобильному маршруту в км (точное, без округления), через OSRM."""
+    coords = f"{origin[0]},{origin[1]};{destination[0]},{destination[1]}"
+    resp = await client.get(f"{OSRM_ROUTE_URL}/{coords}", params={"overview": "false"})
     resp.raise_for_status()
     data = resp.json()
-    routes = data.get("route", {}).get("legs") or data.get("routes")
-    # Формат ответа Router API: {"route": {"legs": [...], "distance": {"value": meters}, ...}}
-    distance_meters = None
-    if "route" in data and isinstance(data["route"], dict) and "distance" in data["route"]:
-        distance_meters = data["route"]["distance"]["value"]
-    elif "routes" in data and data["routes"]:
-        distance_meters = data["routes"][0]["distance"]["value"]
-    if distance_meters is None:
+    if data.get("code") != "Ok" or not data.get("routes"):
         raise YandexApiError(f"Не удалось получить маршрут: {data}")
+    distance_meters = data["routes"][0]["distance"]
     return distance_meters / 1000.0
 
 
@@ -61,14 +49,13 @@ def round_up_km(distance_km: float) -> int:
 async def compute_distance(
     client: httpx.AsyncClient,
     geocoder_key: str,
-    router_key: str,
     address_from: str,
     address_to: str,
     sem: asyncio.Semaphore,
 ) -> int:
-    """Геокодирует оба адреса и считает расстояние по дороге, округлённое вверх до целого км."""
+    """Геокодирует оба адреса (Яндекс) и считает расстояние по дороге (OSRM), округлённое вверх до целого км."""
     async with sem:
         origin = await geocode(client, geocoder_key, address_from)
         destination = await geocode(client, geocoder_key, address_to)
-        distance_km = await route_distance_km(client, router_key, origin, destination)
+        distance_km = await route_distance_km(client, origin, destination)
         return round_up_km(distance_km)
