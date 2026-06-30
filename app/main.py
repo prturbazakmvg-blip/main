@@ -1,5 +1,7 @@
 import asyncio
+import base64
 import io
+import json
 
 import httpx
 import pandas as pd
@@ -17,6 +19,7 @@ app.add_middleware(
     allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition", "X-Errors-Count", "X-Errors-Detail"],
 )
 
 
@@ -53,6 +56,7 @@ async def process(
     to_column: str = Form(...),
     result_column: str = Form("Расстояние, км"),
     api_key: str = Form(...),
+    city: str = Form(""),
 ):
     content = await file.read()
     try:
@@ -62,6 +66,11 @@ async def process(
 
     if from_column not in df.columns or to_column not in df.columns:
         raise HTTPException(400, "Выбранные столбцы не найдены в таблице")
+
+    city = city.strip()
+
+    def with_city(address: str) -> str:
+        return f"{city}, {address}" if city else address
 
     sem = asyncio.Semaphore(5)
     results: list[int | None] = [None] * len(df)
@@ -75,7 +84,9 @@ async def process(
                 errors.append(f"Строка {i + 2}: пустой адрес")
                 return
             try:
-                results[i] = await compute_distance(client, api_key, address_from, address_to, sem)
+                results[i] = await compute_distance(
+                    client, api_key, with_city(address_from), with_city(address_to), sem
+                )
             except (YandexApiError, httpx.HTTPStatusError) as exc:
                 errors.append(f"Строка {i + 2}: {exc}")
 
@@ -84,9 +95,11 @@ async def process(
     df[result_column] = results
 
     body, media_type, out_name = _write_table(df, file.filename)
+    errors_b64 = base64.b64encode(json.dumps(errors[:50], ensure_ascii=False).encode("utf-8")).decode("ascii")
     headers = {
         "Content-Disposition": f'attachment; filename="{out_name}"',
         "X-Errors-Count": str(len(errors)),
+        "X-Errors-Detail": errors_b64,
     }
     return StreamingResponse(io.BytesIO(body), media_type=media_type, headers=headers)
 

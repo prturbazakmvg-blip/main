@@ -70,21 +70,28 @@
   <label for="to">Столбец «куда»</label>
   <select id="to" disabled><option>сначала загрузите файл</option></select>
 
+  <label for="city">Город (необязательно)</label>
+  <input id="city" type="text" placeholder="например: Екатеринбург" autocomplete="off" />
+  <div class="hint">Добавляется перед каждым адресом при поиске — без города короткие адреса вида «Фрезеровщиков 37» могут не находиться или находиться не в том городе.</div>
+
   <label for="apiKey">Ключ Яндекс API (Geocoder + Router)</label>
   <input id="apiKey" type="password" placeholder="вставьте ваш API-ключ" autocomplete="off" />
   <div class="hint">Ключ нигде не сохраняется, передаётся только на ваш сервер для расчёта.</div>
 
   <button id="submit" disabled>Рассчитать и скачать</button>
   <div id="status" class="status"></div>
+  <ul id="errorList" class="hint" style="margin-top:6px; padding-left:18px;"></ul>
 </div>
 
 <script>
 const fileInput = document.getElementById('file');
 const fromSelect = document.getElementById('from');
 const toSelect = document.getElementById('to');
+const cityInput = document.getElementById('city');
 const apiKeyInput = document.getElementById('apiKey');
 const submitBtn = document.getElementById('submit');
 const statusEl = document.getElementById('status');
+const errorListEl = document.getElementById('errorList');
 
 function setStatus(text, cls) {
   statusEl.textContent = text || '';
@@ -136,11 +143,13 @@ submitBtn.addEventListener('click', async () => {
   if (!file) return;
   submitBtn.disabled = true;
   setStatus('Считаю расстояния, это может занять время…');
+  errorListEl.innerHTML = '';
 
   const form = new FormData();
   form.append('file', file);
   form.append('from_column', fromSelect.value);
   form.append('to_column', toSelect.value);
+  form.append('city', cityInput.value.trim());
   form.append('api_key', apiKeyInput.value.trim());
 
   try {
@@ -150,6 +159,7 @@ submitBtn.addEventListener('click', async () => {
       throw new Error(err.detail || 'Ошибка обработки');
     }
     const errCount = res.headers.get('X-Errors-Count');
+    const errDetailB64 = res.headers.get('X-Errors-Detail');
     const blob = await res.blob();
     const disposition = res.headers.get('Content-Disposition') || '';
     const match = disposition.match(/filename="?([^"]+)"?/);
@@ -160,8 +170,18 @@ submitBtn.addEventListener('click', async () => {
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
     setStatus(errCount && errCount !== '0'
-      ? `Готово, но ${errCount} строк не удалось рассчитать (проверьте адреса).`
+      ? `Готово, но ${errCount} строк не удалось рассчитать.`
       : 'Готово, файл скачан.', errCount && errCount !== '0' ? 'error' : 'ok');
+    if (errDetailB64) {
+      try {
+        const details = JSON.parse(decodeURIComponent(escape(atob(errDetailB64))));
+        for (const msg of details) {
+          const li = document.createElement('li');
+          li.textContent = msg;
+          errorListEl.appendChild(li);
+        }
+      } catch (_) { /* игнорируем проблемы парсинга деталей */ }
+    }
   } catch (e) {
     setStatus(e.message, 'error');
   }
