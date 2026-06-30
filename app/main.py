@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.yandex import YandexApiError, compute_distance
+from app.geo import GeoApiError, compute_distance
 
 app = FastAPI(title="Address Distance Calculator")
 
@@ -55,7 +55,6 @@ async def process(
     from_column: str = Form(...),
     to_column: str = Form(...),
     result_column: str = Form("Расстояние, км"),
-    geocoder_key: str = Form(...),
     city: str = Form(""),
 ):
     content = await file.read()
@@ -85,9 +84,9 @@ async def process(
                 return
             try:
                 results[i] = await compute_distance(
-                    client, geocoder_key, with_city(address_from), with_city(address_to), sem
+                    client, with_city(address_from), with_city(address_to), sem
                 )
-            except (YandexApiError, httpx.HTTPStatusError) as exc:
+            except (GeoApiError, httpx.HTTPStatusError) as exc:
                 errors.append(f"Строка {i + 2}: {exc}")
 
         await asyncio.gather(*(worker(i) for i in range(len(df))))
