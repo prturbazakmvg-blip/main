@@ -55,7 +55,8 @@ async def process(
     from_column: str = Form(...),
     to_column: str = Form(...),
     result_column: str = Form("Расстояние, км"),
-    api_key: str = Form(...),
+    geocoder_key: str = Form(...),
+    router_key: str = Form(...),
     city: str = Form(""),
 ):
     content = await file.read()
@@ -85,7 +86,7 @@ async def process(
                 return
             try:
                 results[i] = await compute_distance(
-                    client, api_key, with_city(address_from), with_city(address_to), sem
+                    client, geocoder_key, router_key, with_city(address_from), with_city(address_to), sem
                 )
             except (YandexApiError, httpx.HTTPStatusError) as exc:
                 errors.append(f"Строка {i + 2}: {exc}")

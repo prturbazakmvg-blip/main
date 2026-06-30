@@ -74,9 +74,12 @@
   <input id="city" type="text" placeholder="например: Екатеринбург" autocomplete="off" />
   <div class="hint">Добавляется перед каждым адресом при поиске — без города короткие адреса вида «Фрезеровщиков 37» могут не находиться или находиться не в том городе.</div>
 
-  <label for="apiKey">Ключ Яндекс API (Geocoder + Router)</label>
-  <input id="apiKey" type="password" placeholder="вставьте ваш API-ключ" autocomplete="off" />
-  <div class="hint">Ключ нигде не сохраняется, передаётся только на ваш сервер для расчёта.</div>
+  <label for="geocoderKey">Ключ «API Геокодера»</label>
+  <input id="geocoderKey" type="password" placeholder="вставьте ключ геокодера" autocomplete="off" />
+
+  <label for="routerKey">Ключ «API Получения деталей маршрута»</label>
+  <input id="routerKey" type="password" placeholder="вставьте ключ маршрутизации" autocomplete="off" />
+  <div class="hint">Это два разных ключа из кабинета developer.tech.yandex.ru. Никуда не сохраняются, передаются только на ваш сервер для расчёта.</div>
 
   <button id="submit" disabled>Рассчитать и скачать</button>
   <div id="status" class="status"></div>
@@ -88,7 +91,8 @@ const fileInput = document.getElementById('file');
 const fromSelect = document.getElementById('from');
 const toSelect = document.getElementById('to');
 const cityInput = document.getElementById('city');
-const apiKeyInput = document.getElementById('apiKey');
+const geocoderKeyInput = document.getElementById('geocoderKey');
+const routerKeyInput = document.getElementById('routerKey');
 const submitBtn = document.getElementById('submit');
 const statusEl = document.getElementById('status');
 const errorListEl = document.getElementById('errorList');
@@ -99,10 +103,11 @@ function setStatus(text, cls) {
 }
 
 function updateSubmitState() {
-  submitBtn.disabled = !(fileInput.files[0] && fromSelect.value && toSelect.value && apiKeyInput.value.trim());
+  submitBtn.disabled = !(fileInput.files[0] && fromSelect.value && toSelect.value
+    && geocoderKeyInput.value.trim() && routerKeyInput.value.trim());
 }
 
-[fromSelect, toSelect, apiKeyInput].forEach(el => el.addEventListener('input', updateSubmitState));
+[fromSelect, toSelect, geocoderKeyInput, routerKeyInput].forEach(el => el.addEventListener('input', updateSubmitState));
 
 fileInput.addEventListener('change', async () => {
   const file = fileInput.files[0];
@@ -150,7 +155,8 @@ submitBtn.addEventListener('click', async () => {
   form.append('from_column', fromSelect.value);
   form.append('to_column', toSelect.value);
   form.append('city', cityInput.value.trim());
-  form.append('api_key', apiKeyInput.value.trim());
+  form.append('geocoder_key', geocoderKeyInput.value.trim());
+  form.append('router_key', routerKeyInput.value.trim());
 
   try {
     const res = await fetch('/api/process', { method: 'POST', body: form });

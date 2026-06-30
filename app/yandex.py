@@ -59,11 +59,16 @@ def round_up_km(distance_km: float) -> int:
 
 
 async def compute_distance(
-    client: httpx.AsyncClient, api_key: str, address_from: str, address_to: str, sem: asyncio.Semaphore
+    client: httpx.AsyncClient,
+    geocoder_key: str,
+    router_key: str,
+    address_from: str,
+    address_to: str,
+    sem: asyncio.Semaphore,
 ) -> int:
     """Геокодирует оба адреса и считает расстояние по дороге, округлённое вверх до целого км."""
     async with sem:
-        origin = await geocode(client, api_key, address_from)
-        destination = await geocode(client, api_key, address_to)
-        distance_km = await route_distance_km(client, api_key, origin, destination)
+        origin = await geocode(client, geocoder_key, address_from)
+        destination = await geocode(client, geocoder_key, address_to)
+        distance_km = await route_distance_km(client, router_key, origin, destination)
         return round_up_km(distance_km)
