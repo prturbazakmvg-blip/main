@@ -38,6 +38,20 @@ async def geocode(client: httpx.AsyncClient, address: str) -> tuple[float, float
     return float(results[0]["lon"]), float(results[0]["lat"])
 
 
+async def geocode_with_cities(
+    client: httpx.AsyncClient, address: str, cities: list[str]
+) -> tuple[float, float]:
+    """Пробует геокодировать адрес с каждым городом-кандидатом по очереди, затем без города."""
+    candidates = [f"{city}, {address}" for city in cities] + [address]
+    last_error: Exception | None = None
+    for candidate in candidates:
+        try:
+            return await geocode(client, candidate)
+        except GeoApiError as exc:
+            last_error = exc
+    raise last_error or GeoApiError(f"Адрес не найден: {address!r}")
+
+
 async def route_distance_km(
     client: httpx.AsyncClient, origin: tuple[float, float], destination: tuple[float, float]
 ) -> float:
@@ -60,11 +74,13 @@ async def compute_distance(
     client: httpx.AsyncClient,
     address_from: str,
     address_to: str,
+    cities: list[str],
     sem: asyncio.Semaphore,
 ) -> int:
-    """Геокодирует оба адреса (Nominatim) и считает расстояние по дороге (OSRM), округлённое вверх до целого км."""
+    """Геокодирует оба адреса (Nominatim, перебирая города-кандидаты) и считает
+    расстояние по дороге (OSRM), округлённое вверх до целого км."""
     async with sem:
-        origin = await geocode(client, address_from)
-        destination = await geocode(client, address_to)
+        origin = await geocode_with_cities(client, address_from, cities)
+        destination = await geocode_with_cities(client, address_to, cities)
         distance_km = await route_distance_km(client, origin, destination)
         return round_up_km(distance_km)

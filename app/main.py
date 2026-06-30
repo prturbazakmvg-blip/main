@@ -66,10 +66,7 @@ async def process(
     if from_column not in df.columns or to_column not in df.columns:
         raise HTTPException(400, "Выбранные столбцы не найдены в таблице")
 
-    city = city.strip()
-
-    def with_city(address: str) -> str:
-        return f"{city}, {address}" if city else address
+    cities = [c.strip() for c in city.split(",") if c.strip()]
 
     sem = asyncio.Semaphore(5)
     results: list[int | None] = [None] * len(df)
@@ -83,9 +80,7 @@ async def process(
                 errors.append(f"Строка {i + 2}: пустой адрес")
                 return
             try:
-                results[i] = await compute_distance(
-                    client, with_city(address_from), with_city(address_to), sem
-                )
+                results[i] = await compute_distance(client, address_from, address_to, cities, sem)
             except (GeoApiError, httpx.HTTPStatusError) as exc:
                 errors.append(f"Строка {i + 2}: {exc}")
 

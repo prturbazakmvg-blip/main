@@ -70,9 +70,9 @@
   <label for="to">Столбец «куда»</label>
   <select id="to" disabled><option>сначала загрузите файл</option></select>
 
-  <label for="city">Город (необязательно)</label>
-  <input id="city" type="text" placeholder="например: Екатеринбург" autocomplete="off" />
-  <div class="hint">Добавляется перед каждым адресом при поиске — без города короткие адреса вида «Фрезеровщиков 37» могут не находиться или находиться не в том городе.</div>
+  <label for="city">Города (необязательно, через запятую)</label>
+  <input id="city" type="text" placeholder="например: Екатеринбург, Берёзовский" autocomplete="off" />
+  <div class="hint">Для каждого адреса сервис перебирает города по очереди, пока не найдёт совпадение — без города короткие адреса вида «Ленина 1» могут не находиться или находиться не в том городе.</div>
 
   <button id="submit" disabled>Рассчитать и скачать</button>
   <div id="status" class="status"></div>
