@@ -6,6 +6,7 @@ from typing import Dict, List
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from .net import ssl_context
 from .paths import CONTACTS_DIR, ensure_dirs, safe_filename
 
 USER_AGENT = 'Mozilla/5.0 (compatible; telegram-invite/2.0)'
@@ -57,7 +58,7 @@ def download(sheet_url: str, timeout: int = 30) -> str:
     request = Request(csv_url, headers={'User-Agent': USER_AGENT})
 
     try:
-        with urlopen(request, timeout=timeout) as response:
+        with urlopen(request, timeout=timeout, context=ssl_context()) as response:
             content_type = response.headers.get('Content-Type', '')
             raw = response.read()
     except HTTPError as e:

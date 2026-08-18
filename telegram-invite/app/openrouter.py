@@ -8,6 +8,7 @@ import json
 import re
 
 from . import names
+from .net import ssl_context
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -172,7 +173,7 @@ def ask(api_key, model, system, user, timeout=60, max_tokens=200):
     )
 
     try:
-        with urlopen(request, timeout=timeout) as response:
+        with urlopen(request, timeout=timeout, context=ssl_context()) as response:
             data = json.loads(response.read().decode('utf-8'))
     except HTTPError as e:
         body = ''
@@ -557,7 +558,7 @@ def check_key(api_key, timeout=20):
         headers={'Authorization': 'Bearer {}'.format(api_key)},
     )
     try:
-        with urlopen(request, timeout=timeout) as response:
+        with urlopen(request, timeout=timeout, context=ssl_context()) as response:
             data = json.loads(response.read().decode('utf-8'))
     except HTTPError as e:
         raise OpenRouterError('ключ не принят ({})'.format(e.code))
