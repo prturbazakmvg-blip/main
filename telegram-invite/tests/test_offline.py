@@ -1419,6 +1419,9 @@ class TestUpdates(unittest.TestCase):
         self.assertIn('[ -d "{source}" ] || exit 1', updates.SWAP)
 
 
+@unittest.skipUnless(sys.platform == 'darwin',
+                      'фикс активен только на macOS (app._fix_mac_version '
+                      'выходит рано на других платформах)')
 class TestMacVersionShim(unittest.TestCase):
     """Telethon падал при импорте, если macOS назвала версию одним числом.
 

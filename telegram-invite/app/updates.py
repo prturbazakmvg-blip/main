@@ -34,6 +34,7 @@ import urllib.request
 from pathlib import Path
 
 from . import __version__
+from .net import ssl_context
 
 SITE_URL = 'https://tgsoft.fi.leadget.ru/'
 FEED_URL = SITE_URL + 'telegram-invite/latest.json'
@@ -61,7 +62,8 @@ def is_newer(there, here=None):
 
 def _opener():
     """Свой opener: раздача открыта, логин не нужен."""
-    return urllib.request.build_opener()
+    return urllib.request.build_opener(
+        urllib.request.HTTPSHandler(context=ssl_context()))
 
 
 def check(url=FEED_URL):
