@@ -1,0 +1,104 @@
+name: telegram-invite / Сборка приложения
+
+on:
+  push:
+    tags: ['telegram-invite-v*']
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: telegram-invite
+
+jobs:
+  build:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            label: windows
+            asset: telegram-invite-windows
+          - os: macos-14
+            label: macos-apple-silicon
+            asset: telegram-invite-macos-arm64
+          - os: macos-13
+            label: macos-intel
+            asset: telegram-invite-macos-intel
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Установка зависимостей
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-build.txt
+
+      - name: Сборка
+        run: pyinstaller --clean --noconfirm telegram_invite.spec
+
+      - name: Упаковка (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path package | Out-Null
+          Copy-Item dist/telegram-invite.exe package/
+          Copy-Item template.txt package/
+          Copy-Item docs/README-windows.txt "package/Прочитай меня.txt"
+          Compress-Archive -Path package/* -DestinationPath ${{ matrix.asset }}.zip
+
+      - name: Иконка приложения (если .icns не закоммичен)
+        if: runner.os == 'macOS'
+        run: |
+          if [ ! -f assets/icon.icns ]; then
+            pip install --quiet pillow
+            python tools/make_icon.py
+          fi
+
+      - name: Сборка оконной версии (macOS)
+        if: runner.os == 'macOS'
+        run: pyinstaller --clean --noconfirm telegram_invite_gui.spec
+
+      - name: Упаковка (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p package
+          # Основное — приложение с окном, консольная версия идёт довеском
+          cp -R "dist/Черновики приглашений.app" package/
+          cp dist/telegram-invite package/
+          cp template.txt package/
+          cp docs/README-macos.txt "package/Прочитай меня.txt"
+          chmod +x package/telegram-invite
+          # Ad-hoc подпись: на Apple Silicon без неё ничего не стартует.
+          codesign --force --deep --sign - "package/Черновики приглашений.app"
+          codesign --force --sign - package/telegram-invite
+          codesign --verify --strict "package/Черновики приглашений.app"
+          # zip -y сохраняет права на исполнение и симлинки внутри .app
+          cd package && zip -r -y "../${{ matrix.asset }}.zip" .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: telegram-invite/${{ matrix.asset }}.zip
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/telegram-invite-v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*.zip
+          generate_release_notes: true

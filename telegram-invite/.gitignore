@@ -1,0 +1,32 @@
+# Ключи от Telegram — в репозиторий не попадают
+credentials.json
+
+# Файл сессии = полный доступ к аккаунту. Утечка равна угону аккаунта.
+*.session
+*.session-journal
+state/
+
+# Выгруженные контакты — персональные данные
+contacts/
+*.csv
+
+# Сборка
+build/
+dist/
+package/
+package-gui/
+release/
+*.zip
+*.spec.bak
+__pycache__/
+*.py[cod]
+.venv/
+.venv-build/
+venv/
+
+.DS_Store
+
+# Ключ OpenRouter, вшиваемый в сборку для коллег. Кладётся скриптом сборки
+# из локального credentials.json и стирается сразу после.
+bundled_openrouter.key
+telegram-invite-source.zip

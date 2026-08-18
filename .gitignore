@@ -1,3 +1,21 @@
 __pycache__/
 *.pyc
 .venv/
+
+# telegram-invite/
+telegram-invite/credentials.json
+telegram-invite/*.session
+telegram-invite/*.session-journal
+telegram-invite/state/
+telegram-invite/contacts/
+telegram-invite/*.csv
+telegram-invite/build/
+telegram-invite/dist/
+telegram-invite/package/
+telegram-invite/package-gui/
+telegram-invite/release/
+telegram-invite/*.zip
+telegram-invite/*.spec.bak
+telegram-invite/.venv-build/
+telegram-invite/bundled_openrouter.key
+telegram-invite/telegram-invite-source.zip
